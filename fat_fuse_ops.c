@@ -3,10 +3,6 @@
  *
  * FAT32 filesystem operations for FUSE (Filesystem in Userspace)
  */
-
-#include "fat_fuse_ops.h"
-
-#include "fat_file.h"
 #include "fat_filename_util.h"
 #include "fat_fs_tree.h"
 #include "fat_util.h"
@@ -29,27 +25,70 @@ static inline fat_volume get_fat_volume() {
 #define LOG_MESSAGE_SIZE 100
 #define DATE_MESSAGE_SIZE 30
 
-// static void now_to_str(char *buf) {
-//     time_t now = time(NULL);
-//     struct tm *timeinfo;
-//     timeinfo = localtime(&now);
+static void now_to_str(char *buf) {
+    time_t now = time(NULL);
+    struct tm *timeinfo;
+    timeinfo = localtime(&now);
 
-//     strftime(buf, DATE_MESSAGE_SIZE, "%d-%m-%Y %H:%M", timeinfo);
-// }
+    strftime(buf, DATE_MESSAGE_SIZE, "%d-%m-%Y %H:%M", timeinfo);
+}
 
-// // TODO: complete this function to log to file
-// static void fat_fuse_log_activity(char *operation_type, fat_file target_file)
-// {
-//     char buf[LOG_MESSAGE_SIZE] = "";
-//     now_to_str(buf);
-//     strcat(buf, "\t");
-//     strcat(buf, getlogin());
-//     strcat(buf, "\t");
-//     strcat(buf, target_file->filepath);
-//     strcat(buf, "\t");
-//     strcat(buf, operation_type);
-//     strcat(buf, "\n");
-// }
+/* Creates a new file in @path. @mode and @dev are ignored. */
+static int fat_fuse_mknod(const char *path, mode_t mode, dev_t dev) {
+    errno = 0;
+    fat_volume vol;
+    fat_file parent, new_file;
+    fat_tree_node parent_node;
+
+    // The system has already checked the path does not exist. We get the parent
+    vol = get_fat_volume();
+    parent_node = fat_tree_node_search(vol->file_tree, dirname(strdup(path)));
+    if (parent_node == NULL) {
+        errno = ENOENT;
+        return -errno;
+    }
+    parent = fat_tree_get_file(parent_node);
+    if (!fat_file_is_directory(parent)) {
+        fat_error("Error! Parent is not directory\n");
+        errno = ENOTDIR;
+        return -errno;
+    }
+    new_file = fat_file_init(vol->table, false, strdup(path));
+    if (errno < 0) {
+        return -errno;
+    }
+    // insert to directory tree representation
+    vol->file_tree = fat_tree_insert(vol->file_tree, parent_node, new_file);
+    // Write dentry in parent cluster
+    fat_file_dentry_add_child(parent, new_file);
+    return -errno;
+}
+
+// TODO: complete this function to log to file
+static void fat_fuse_log_activity(char *operation_type, fat_file target_file)
+{   
+    fat_volume vol = get_fat_volume();
+    fat_file file = fat_tree_search(vol->file_tree, "/fs.log");
+    fat_tree_node file_node = fat_tree_node_search(vol->file_tree, file->filepath); //PELIGRO
+     
+    if(file == NULL){
+        fat_fuse_mknod("/fs.log",0,0);
+    }
+        
+    char buf[LOG_MESSAGE_SIZE] = "";
+    now_to_str(buf);
+    strcat(buf, "\t");
+    strcat(buf, getlogin());
+    strcat(buf, "\t");
+    strcat(buf, target_file->filepath);
+    strcat(buf, "\t");
+    strcat(buf, operation_type);
+    strcat(buf, "\n");
+
+
+    fat_file_pwrite(file,buf,LOG_MESSAGE_SIZE,file->dentry->file_size,fat_tree_get_parent(file_node));
+
+}
 
 /* Get file attributes (file descriptor version) */
 static int fat_fuse_fgetattr(const char *path, struct stat *stbuf,
@@ -85,6 +124,8 @@ static int fat_fuse_open(const char *path, struct fuse_file_info *fi) {
     if (!file_node)
         return -errno;
     file = fat_tree_get_file(file_node);
+
+
     if (fat_file_is_directory(file))
         return -EISDIR;
     fat_tree_inc_num_times_opened(file_node);
@@ -169,6 +210,8 @@ static int fat_fuse_read(const char *path, char *buf, size_t size, off_t offset,
     fat_file file = fat_tree_get_file(file_node);
     fat_file parent = fat_tree_get_parent(file_node);
 
+    fat_fuse_log_activity("read",file);
+    
     bytes_read = fat_file_pread(file, buf, size, offset, parent);
     if (errno != 0) {
         return -errno;
@@ -237,36 +280,7 @@ static int fat_fuse_mkdir(const char *path, mode_t mode) {
     return -errno;
 }
 
-/* Creates a new file in @path. @mode and @dev are ignored. */
-static int fat_fuse_mknod(const char *path, mode_t mode, dev_t dev) {
-    errno = 0;
-    fat_volume vol;
-    fat_file parent, new_file;
-    fat_tree_node parent_node;
 
-    // The system has already checked the path does not exist. We get the parent
-    vol = get_fat_volume();
-    parent_node = fat_tree_node_search(vol->file_tree, dirname(strdup(path)));
-    if (parent_node == NULL) {
-        errno = ENOENT;
-        return -errno;
-    }
-    parent = fat_tree_get_file(parent_node);
-    if (!fat_file_is_directory(parent)) {
-        fat_error("Error! Parent is not directory\n");
-        errno = ENOTDIR;
-        return -errno;
-    }
-    new_file = fat_file_init(vol->table, false, strdup(path));
-    if (errno < 0) {
-        return -errno;
-    }
-    // insert to directory tree representation
-    vol->file_tree = fat_tree_insert(vol->file_tree, parent_node, new_file);
-    // Write dentry in parent cluster
-    fat_file_dentry_add_child(parent, new_file);
-    return -errno;
-}
 
 static int fat_fuse_utime(const char *path, struct utimbuf *buf) {
     errno = 0;
@@ -334,4 +348,4 @@ struct fuse_operations fat_fuse_operations = {
     (FUSE_MAJOR_VERSION == 2 && FUSE_MINOR_VERSION >= 9)
     .flag_nopath = 1,
 #endif
-};
+}
