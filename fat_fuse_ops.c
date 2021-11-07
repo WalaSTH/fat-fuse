@@ -77,6 +77,7 @@ static void fat_fuse_log_activity(char *operation_type, fat_file target_file)
         //There is no fs.log -> We must create it
         fat_fuse_mknod("/fs.log",0,0);
         file = fat_tree_search(vol->file_tree, "/fs.log");
+        file->dentry->attribs = FILE_ATTRIBUTE_HIDDEN;
     }
     char buf[LOG_MESSAGE_SIZE] = "";
     now_to_str(buf);
@@ -91,6 +92,9 @@ static void fat_fuse_log_activity(char *operation_type, fat_file target_file)
     //Write to fs.log
     fat_tree_node f_node = fat_tree_node_search(vol->file_tree, file->filepath); //PELIGRO
     fat_file_pwrite(file,buf,LOG_MESSAGE_SIZE,file->dentry->file_size,fat_tree_get_parent(f_node));
+    //NOTICED a weird bug: Solo se escriben tres lineas en fs.log
+    //Luego montando con linux se ve que se duplica TEST_F-1 donde el segundo pareciera contener
+    //texto que iria en fs.log
 }
 
 /* Get file attributes (file descriptor version) */
@@ -195,9 +199,12 @@ static int fat_fuse_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     children = fat_tree_flatten_h_children(dir_node);
     child = children;
     while (*child != NULL) {
-        error = (*filler)(buf, (*child)->name, NULL, 0);
-        if (error != 0) {
-            return -errno;
+        if((*child)->dentry->attribs != FILE_ATTRIBUTE_HIDDEN){
+            //File is not hidden
+            error = (*filler)(buf, (*child)->name, NULL, 0);
+            if (error != 0) {
+                return -errno;
+            }
         }
         child++;
     }
