@@ -3,6 +3,9 @@
  *
  * FAT32 filesystem operations for FUSE (Filesystem in Userspace)
  */
+#include "fat_fuse_ops.h"
+
+#include "fat_file.h"
 #include "fat_filename_util.h"
 #include "fat_fs_tree.h"
 #include "fat_util.h"
@@ -69,12 +72,13 @@ static void fat_fuse_log_activity(char *operation_type, fat_file target_file)
 {   
     fat_volume vol = get_fat_volume();
     fat_file file = fat_tree_search(vol->file_tree, "/fs.log");
-    fat_tree_node file_node = fat_tree_node_search(vol->file_tree, file->filepath); //PELIGRO
+    
      
     if(file == NULL){
         fat_fuse_mknod("/fs.log",0,0);
     }
-        
+    fat_tree_node file_node = fat_tree_node_search(vol->file_tree, file->filepath); //PELIGRO
+    
     char buf[LOG_MESSAGE_SIZE] = "";
     now_to_str(buf);
     strcat(buf, "\t");
@@ -348,4 +352,4 @@ struct fuse_operations fat_fuse_operations = {
     (FUSE_MAJOR_VERSION == 2 && FUSE_MINOR_VERSION >= 9)
     .flag_nopath = 1,
 #endif
-}
+};
