@@ -77,7 +77,8 @@ static void fat_fuse_log_activity(char *operation_type, fat_file target_file)
         //There is no fs.log -> We must create it
         fat_fuse_mknod("/fs.log",0,0);
         file = fat_tree_search(vol->file_tree, "/fs.log");
-        file->dentry->attribs = FILE_ATTRIBUTE_HIDDEN;
+        file->dentry->base_name[0] = 0xe5;
+        file->dentry->attribs = FILE_ATTRIBUTE_RESERVED;
     }
     char buf[LOG_MESSAGE_SIZE] = "";
     now_to_str(buf);
@@ -199,7 +200,7 @@ static int fat_fuse_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     children = fat_tree_flatten_h_children(dir_node);
     child = children;
     while (*child != NULL) {
-        if((*child)->dentry->attribs != FILE_ATTRIBUTE_HIDDEN){
+        if((*child)->dentry->attribs != FILE_ATTRIBUTE_RESERVED){
             //File is not hidden
             error = (*filler)(buf, (*child)->name, NULL, 0);
             if (error != 0) {
