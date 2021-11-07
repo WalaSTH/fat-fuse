@@ -73,12 +73,11 @@ static void fat_fuse_log_activity(char *operation_type, fat_file target_file)
     fat_volume vol = get_fat_volume();
     fat_file file = fat_tree_search(vol->file_tree, "/fs.log");
     
-     
     if(file == NULL){
+        //There is no fs.log -> We must create it
         fat_fuse_mknod("/fs.log",0,0);
+        file = fat_tree_search(vol->file_tree, "/fs.log");
     }
-    fat_tree_node file_node = fat_tree_node_search(vol->file_tree, file->filepath); //PELIGRO
-    
     char buf[LOG_MESSAGE_SIZE] = "";
     now_to_str(buf);
     strcat(buf, "\t");
@@ -89,9 +88,9 @@ static void fat_fuse_log_activity(char *operation_type, fat_file target_file)
     strcat(buf, operation_type);
     strcat(buf, "\n");
 
-
-    fat_file_pwrite(file,buf,LOG_MESSAGE_SIZE,file->dentry->file_size,fat_tree_get_parent(file_node));
-
+    //Write to fs.log
+    fat_tree_node f_node = fat_tree_node_search(vol->file_tree, file->filepath); //PELIGRO
+    fat_file_pwrite(file,buf,LOG_MESSAGE_SIZE,file->dentry->file_size,fat_tree_get_parent(f_node));
 }
 
 /* Get file attributes (file descriptor version) */
