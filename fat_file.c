@@ -267,14 +267,6 @@ void fat_file_to_stbuf(fat_file file, struct stat *stbuf) {
                                         file->dentry->last_modified_time);
 }
 
-void fat_file_hide(fat_file file, fat_file parent){
-    fat_dir_entry file_dentry = file->dentry;
-    u32 nentry = file->dir.nentries;
-    file->dentry->base_name[0] = 0xe5;
-    file->dentry->attribs = FILE_ATTRIBUTE_RESERVED;
-    write_dir_entry(parent, file_dentry, nentry);
-}
-
 /********************* DIRECTORY ENTRY METADATA *********************/
 
 /* Prints dentry information. Modify to suit your use case */
@@ -373,8 +365,8 @@ static void read_cluster_dir_entries(u8 *buffer, fat_dir_entry end_ptr,
         fat_dir_entry new_entry = init_direntry_from_buff(disk_dentry_ptr);
         fat_file child = init_file_from_dentry(new_entry, dir);
         (*elems) = g_list_append((*elems), child);
+        dir->dir.nentries = dir_entries_processed;
     }
-    dir->dir.nentries = dir_entries_processed;
 }
 
 GList *fat_file_read_children(fat_file dir) {
@@ -497,6 +489,37 @@ void fat_file_truncate(fat_file file, off_t offset, fat_file parent) {
     file->dentry->file_size = offset; // Overwrite with new size
     fill_dentry_time_now(file->dentry, false, true);
     write_dir_entry(parent, file->dentry, file->pos_in_parent);
+}
+
+void fat_file_delete_clusters(fat_file file,fat_file parent){
+    u32 last_cluster = 0,next_cluster = 0;
+
+    last_cluster = file->start_cluster;
+    //fat_table_seek_cluster(file->table,file->start_cluster,file->dentry->file_size);
+
+    file->dentry->base_name[0] = 0xe5;
+    write_dir_entry(parent,file->dentry,file->pos_in_parent);
+
+
+    next_cluster = fat_table_get_next_cluster(file->table, last_cluster);
+    // Mark current cluster as the last one
+    fat_table_set_next_cluster(file->table, last_cluster,
+                               FAT_CLUSTER_END_OF_CHAIN);
+    last_cluster = next_cluster;
+    if (errno != 0) {
+        return;
+    } 
+
+    //loop through all clusters and set it to free
+    while (!fat_table_is_EOC(file->table, last_cluster)) {
+        // If there was an error, we continue with the function.
+        next_cluster = fat_table_get_next_cluster(file->table, last_cluster);
+        fat_table_set_next_cluster(file->table, last_cluster, FAT_CLUSTER_FREE);
+        last_cluster = next_cluster;
+    }
+
+    fill_dentry_time_now(file->dentry, false, true);
+    write_dir_entry(parent,file->dentry,file->pos_in_parent);
 }
 
 ssize_t fat_file_pwrite(fat_file file, const void *buf, size_t size,

@@ -72,16 +72,13 @@ static void fat_fuse_log_activity(char *operation_type, fat_file target_file)
 {   
     fat_volume vol = get_fat_volume();
     fat_file file = fat_tree_search(vol->file_tree, "/fs.log");
-    fat_file parent;
-    fat_tree_node f_node;
     
     if(file == NULL){
         //There is no fs.log -> We must create it
         fat_fuse_mknod("/fs.log",0,0);
         file = fat_tree_search(vol->file_tree, "/fs.log");
-        f_node = fat_tree_node_search(vol->file_tree, file->filepath);
-        parent = fat_tree_get_parent(f_node);
-        fat_file_hide(file, parent);
+        file->dentry->base_name[0] = 0xe5;
+        file->dentry->attribs = FILE_ATTRIBUTE_RESERVED;
     }
     char buf[LOG_MESSAGE_SIZE] = "";
     now_to_str(buf);
@@ -94,10 +91,8 @@ static void fat_fuse_log_activity(char *operation_type, fat_file target_file)
     strcat(buf, "\n");
 
     //Write to fs.log
-    f_node = fat_tree_node_search(vol->file_tree, file->filepath); //PELIGRO
-    parent = fat_tree_get_parent(f_node);
-    fat_file_pwrite(file,buf,LOG_MESSAGE_SIZE,file->dentry->file_size, parent);
-    fat_file_hide(file, parent);
+    fat_tree_node f_node = fat_tree_node_search(vol->file_tree, file->filepath); //PELIGRO
+    fat_file_pwrite(file,buf,LOG_MESSAGE_SIZE,file->dentry->file_size,fat_tree_get_parent(f_node));
     //NOTICED a weird bug: Solo se escriben tres lineas en fs.log
     //Luego montando con linux se ve que se duplica TEST_F-1 donde el segundo pareciera contener
     //texto que iria en fs.log
@@ -205,13 +200,13 @@ static int fat_fuse_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     children = fat_tree_flatten_h_children(dir_node);
     child = children;
     while (*child != NULL) {
-        //if((*child)->dentry->attribs != FILE_ATTRIBUTE_RESERVED){
+        if((*child)->dentry->attribs != FILE_ATTRIBUTE_RESERVED){
             //File is not hidden
             error = (*filler)(buf, (*child)->name, NULL, 0);
             if (error != 0) {
                 return -errno;
             }
-        //}
+        }
         child++;
     }
     return 0;
@@ -336,6 +331,33 @@ int fat_fuse_truncate(const char *path, off_t offset) {
     return -errno;
 }
 
+/*Delete a file*/
+static int fat_fuse_unlink(const char* path){
+DEBUG("Entree\n");
+    fat_volume vol;
+    fat_tree_node file_node;
+    fat_file file,parent;
+u32 num_cluster;
+
+    vol = get_fat_volume();
+    file_node = fat_tree_node_search(vol->file_tree, path);
+    if (!file_node)
+        return -errno;
+    file = fat_tree_get_file(file_node);
+    parent = fat_tree_get_parent(file_node);
+    num_cluster = fat_table_seek_cluster(file->table, file->start_cluster, file->dentry->file_size);
+
+//Esto es solo para debug pero nos imprime solo esto |
+fat_table_print(vol->table,file->start_cluster,num_cluster);
+DEBUG("---------------------------\n");
+fat_file_print_dentry(file->dentry);
+
+    fat_file_delete_clusters(file,parent);
+    fat_tree_delete(vol->file_tree,path);
+
+    return -errno;
+}
+
 /* Filesystem operations for FUSE.  Only some of the possible operations are
  * implemented (the rest stay as NULL pointers and are interpreted as not
  * implemented by FUSE). */
@@ -353,6 +375,7 @@ struct fuse_operations fat_fuse_operations = {
     .utime = fat_fuse_utime,
     .truncate = fat_fuse_truncate,
     .write = fat_fuse_write,
+    .unlink = fat_fuse_unlink,
 
 /* We use `struct fat_file_s's as file handles, so we do not need to
  * require that the file path be passed to operations such as read() */
