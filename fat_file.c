@@ -267,6 +267,14 @@ void fat_file_to_stbuf(fat_file file, struct stat *stbuf) {
                                         file->dentry->last_modified_time);
 }
 
+void fat_file_hide(fat_file file, fat_file parent){
+    fat_dir_entry file_dentry = file->dentry;
+    u32 nentry = file->dir.nentries;
+    file->dentry->base_name[0] = 0xe5;
+    file->dentry->attribs = FILE_ATTRIBUTE_RESERVED;
+    write_dir_entry(parent, file_dentry, nentry);
+}
+
 /********************* DIRECTORY ENTRY METADATA *********************/
 
 /* Prints dentry information. Modify to suit your use case */
