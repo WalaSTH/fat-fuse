@@ -143,6 +143,9 @@ void fat_file_print_dentry(fat_dir_entry dentry);
 /* Fills @buf with the time information in @file. */
 void fat_utime(fat_file file, fat_file parent, const struct utimbuf *buf);
 
+/* Hide log from all filesystems */
+void fat_file_hide_log(fat_file file, fat_file parent);
+
 /********************* DIRECTORY FUNCTIONS *********************/
 
 /* Adds the directory entry of @child to directory @parent, writing the

@@ -378,9 +378,14 @@ fat_volume fat_volume_mount(const char *volume, int mount_flags) {
 
 int fat_volume_unmount(fat_volume vol) {
     int ret;
-
     DEBUG("Unmounting FAT volume");
-
+    //Hide log
+    fat_file file = fat_tree_search(vol->file_tree, "/fs.log");
+    if(file!=NULL){
+        fat_tree_node f_node = fat_tree_node_search(vol->file_tree, file->filepath);
+        fat_file parent = fat_tree_get_parent(f_node);
+        fat_file_hide_log(file, parent);
+    }
     ret = close(vol->table->fd);
     munmap(vol->table->fat_map,
            (size_t)vol->sectors_per_fat << vol->sector_order);

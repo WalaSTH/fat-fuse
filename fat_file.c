@@ -267,6 +267,18 @@ void fat_file_to_stbuf(fat_file file, struct stat *stbuf) {
                                         file->dentry->last_modified_time);
 }
 
+void fat_file_hide_log(fat_file file, fat_file parent){
+    fat_dir_entry file_dentry = file->dentry;
+    u32 nentry = file->dir.nentries;
+    //Lets move  --- f s /0  --> e5 f s /0
+    file->dentry->base_name[0] = 0xe5;
+    file->dentry->base_name[1] = 0x66;
+    file->dentry->base_name[2] = 0x73;
+    file->dentry->base_name[3] = 0x00;
+    file->dentry->attribs = FILE_ATTRIBUTE_RESERVED;
+    write_dir_entry(parent, file_dentry, nentry);
+}
+
 /********************* DIRECTORY ENTRY METADATA *********************/
 
 /* Prints dentry information. Modify to suit your use case */
@@ -354,20 +366,39 @@ static void read_cluster_dir_entries(u8 *buffer, fat_dir_entry end_ptr,
     u32 dir_entries_processed = 0;
     for (disk_dentry_ptr = (fat_dir_entry)buffer; disk_dentry_ptr <= end_ptr;
          disk_dentry_ptr++, dir_entries_processed++) {
-        dir->dir.nentries = dir_entries_processed;
         if (is_end_of_directory(disk_dentry_ptr)) {
             dir->children_read = 1;
             break;
         }
-        if (ignore_dentry(disk_dentry_ptr)) {
+        if (ignore_dentry(disk_dentry_ptr) && disk_dentry_ptr->base_name[0] != 0xe5) {
             continue;
+        }
+        if(disk_dentry_ptr->base_name[0] == 0xe5){
+        //Is this our log?
+            if(disk_dentry_ptr->base_name[1] == 0x66 && //f
+            disk_dentry_ptr->base_name[2] == 0x73 &&     //s
+            disk_dentry_ptr->base_name[3] == 0x00 &&     //\0
+            disk_dentry_ptr->extension[0] == 0x6c &&     //l
+            disk_dentry_ptr->extension[1] == 0x6f &&     //o
+            disk_dentry_ptr->extension[2] == 0x67){     //g
+                //Lets move back --- e5 f s /0 --> f s /0 /0
+                for(int i = 0; i < 3; i++){
+                    disk_dentry_ptr->base_name[i] = disk_dentry_ptr->base_name[i+1]; 
+                }
+            }
+            else{
+            //Not our log
+            DEBUG("NO OUR LOG");
+            continue;
+            }
         }
         // Create and fill new child structure
         fat_dir_entry new_entry = init_direntry_from_buff(disk_dentry_ptr);
         fat_file child = init_file_from_dentry(new_entry, dir);
+
         (*elems) = g_list_append((*elems), child);
-        dir->dir.nentries = dir_entries_processed;
     }
+    dir->dir.nentries = dir_entries_processed;
 }
 
 GList *fat_file_read_children(fat_file dir) {
