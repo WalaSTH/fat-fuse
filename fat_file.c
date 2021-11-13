@@ -354,6 +354,7 @@ static void read_cluster_dir_entries(u8 *buffer, fat_dir_entry end_ptr,
     u32 dir_entries_processed = 0;
     for (disk_dentry_ptr = (fat_dir_entry)buffer; disk_dentry_ptr <= end_ptr;
          disk_dentry_ptr++, dir_entries_processed++) {
+        dir->dir.nentries = dir_entries_processed;
         if (is_end_of_directory(disk_dentry_ptr)) {
             dir->children_read = 1;
             break;
@@ -564,7 +565,7 @@ ssize_t fat_file_pwrite(fat_file file, const void *buf, size_t size,
 
     // Update new file size
     if (original_offset + size - bytes_remaining > file->dentry->file_size) {
-        file->dentry->file_size = offset + size - bytes_remaining;
+        file->dentry->file_size = original_offset + size - bytes_remaining;
     }
     // TODO if this operation fails, then the FAT table and the file's parent
     // entry are left on an incosistent state. FIXME
