@@ -366,6 +366,7 @@ static void read_cluster_dir_entries(u8 *buffer, fat_dir_entry end_ptr,
     u32 dir_entries_processed = 0;
     for (disk_dentry_ptr = (fat_dir_entry)buffer; disk_dentry_ptr <= end_ptr;
          disk_dentry_ptr++, dir_entries_processed++) {
+        dir->dir.nentries = dir_entries_processed;
         if (is_end_of_directory(disk_dentry_ptr)) {
             dir->children_read = 1;
             break;
@@ -395,10 +396,9 @@ static void read_cluster_dir_entries(u8 *buffer, fat_dir_entry end_ptr,
         // Create and fill new child structure
         fat_dir_entry new_entry = init_direntry_from_buff(disk_dentry_ptr);
         fat_file child = init_file_from_dentry(new_entry, dir);
-
         (*elems) = g_list_append((*elems), child);
+        dir->dir.nentries = dir_entries_processed;
     }
-    dir->dir.nentries = dir_entries_processed;
 }
 
 GList *fat_file_read_children(fat_file dir) {
