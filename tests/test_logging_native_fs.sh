@@ -5,7 +5,7 @@
 #     bash tests/test_logging.sh <mounting_directory> <fs_image>
 
 MOUNTING_POINT=${1:-mnt}
-IMAGE=${2:-../resources/bb_fs.img}
+IMAGE=${2:-./bb_fs.img}
 LOG_FILE=fs.log
 
 make clean

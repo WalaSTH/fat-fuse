@@ -5,7 +5,7 @@
 
 
 MOUNTING_POINT=${1:-mnt}
-IMAGE=${2:-../resources/bb_fs.img}
+IMAGE=${2:-./bb_fs.img}
 
 make clean
 make
