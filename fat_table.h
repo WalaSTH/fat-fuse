@@ -20,17 +20,17 @@
  * read/write operations
  */
 struct fat_table_s {
-    // FAT mapped into memory
-    void *fat_map;
-    // The offset to write the fat table
-    off_t fat_offset;
-    // Number of data clusters
-    u32 num_data_clusters;
-    // Byte offset of the "second" cluster (first in the actual layout)
-    off_t data_start_offset;
-    // Open file descriptor to the volume file or device
-    int fd;
-    u16 cluster_order;
+  // FAT mapped into memory
+  void *fat_map;
+  // The offset to write the fat table
+  off_t fat_offset;
+  // Number of data clusters
+  u32 num_data_clusters;
+  // Byte offset of the "second" cluster (first in the actual layout)
+  off_t data_start_offset;
+  // Open file descriptor to the volume file or device
+  int fd;
+  u16 cluster_order;
 };
 
 bool fat_table_is_valid_cluster_number(const fat_table table, u32 cluster);

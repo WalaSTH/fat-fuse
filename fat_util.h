@@ -4,31 +4,31 @@
 #include "fat_types.h"
 #include <sys/types.h>
 
-#define min(a, b)               \
-    ({                          \
-        __typeof__(a) _a = (a); \
-        __typeof__(b) _b = (b); \
-        _a < _b ? _a : _b;      \
-    })
+#define min(a, b)                                                              \
+  ({                                                                           \
+    __typeof__(a) _a = (a);                                                    \
+    __typeof__(b) _b = (b);                                                    \
+    _a < _b ? _a : _b;                                                         \
+  })
 
-#define max(a, b)               \
-    ({                          \
-        __typeof__(a) _a = (a); \
-        __typeof__(b) _b = (b); \
-        _a > _b ? _a : _b;      \
-    })
+#define max(a, b)                                                              \
+  ({                                                                           \
+    __typeof__(a) _a = (a);                                                    \
+    __typeof__(b) _b = (b);                                                    \
+    _a > _b ? _a : _b;                                                         \
+  })
 
 #ifndef NDEBUG
 #include <errno.h>
 #include <stdio.h>
-#define DEBUG(format, ...)                                             \
-    ({                                                                 \
-        int errno_save = errno;                                        \
-        fprintf(stderr, "%s:%u %s(): ", __FILE__, __LINE__, __func__); \
-        fprintf(stderr, format, ##__VA_ARGS__);                        \
-        putc('\n', stderr);                                            \
-        errno = errno_save;                                            \
-    })
+#define DEBUG(format, ...)                                                     \
+  ({                                                                           \
+    int errno_save = errno;                                                    \
+    fprintf(stderr, "%s:%u %s(): ", __FILE__, __LINE__, __func__);             \
+    fprintf(stderr, format, ##__VA_ARGS__);                                    \
+    putc('\n', stderr);                                                        \
+    errno = errno_save;                                                        \
+  })
 #else
 #define DEBUG(format, ...)
 #endif
@@ -70,22 +70,22 @@ time_t time_to_unix_time(u16 le_date, u16 le_time);
  * @type:    the type of the container struct this is embedded in.
  * @member:    the name of the member within the struct.
  */
-#define container_of(ptr, type, member)                        \
-    ({                                                         \
-        const __typeof__(((type *)0)->member) *__mptr = (ptr); \
-        (type *)((char *)__mptr - offsetof(type, member));     \
-    })
+#define container_of(ptr, type, member)                                        \
+  ({                                                                           \
+    const __typeof__(((type *)0)->member) *__mptr = (ptr);                     \
+    (type *)((char *)__mptr - offsetof(type, member));                         \
+  })
 
 /* Bit-scan-reverse:  Return the position of the highest bit set in @n, indexed
  * from bit 0 as the low bit.  @n cannot be 0. */
 static inline unsigned long bsr(unsigned long n) {
-    __asm__("bsr %1,%0" : "=r"(n) : "rm"(n));
-    return n;
+  __asm__("bsr %1,%0" : "=r"(n) : "rm"(n));
+  return n;
 }
 
 /* Returns %true iff @n is a power of 2.  Zero is not a power of 2. */
 static inline bool is_power_of_2(size_t n) {
-    return (n & (n - 1)) == 0 && n != 0;
+  return (n & (n - 1)) == 0 && n != 0;
 }
 
 #endif /* _FAT_UTIL_H */
