@@ -587,7 +587,13 @@ ssize_t fat_file_pwrite(fat_file file, const void *buf, size_t size,
         offset += bytes_written_cluster;
 
         if (bytes_remaining > 0) {
+            //cluster = fat_table_get_next_free_cluster(file->table);
+            u32 new_c = fat_table_get_next_free_cluster(file->table);
+            fat_table_set_next_cluster(file->table, cluster, new_c);
+            fat_table_set_next_cluster(file->table, new_c, FAT_CLUSTER_END_OF_CHAIN);
             cluster = fat_table_get_next_cluster(file->table, cluster);
+            //cluster = new_c;  Should also work
+DEBUG("NO SE ENCONTRO OTRO CLUSTER");
             if (errno != 0) {
                 break;
             }
@@ -595,9 +601,11 @@ ssize_t fat_file_pwrite(fat_file file, const void *buf, size_t size,
     }
 
     // Update new file size
+    // File size is the new one with all I have written
     if (original_offset + size - bytes_remaining > file->dentry->file_size) {
         file->dentry->file_size = original_offset + size - bytes_remaining;
     }
+
     // TODO if this operation fails, then the FAT table and the file's parent
     // entry are left on an incosistent state. FIXME
     // Update modified time
