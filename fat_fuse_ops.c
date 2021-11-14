@@ -340,15 +340,20 @@ DEBUG("Entree\n");
     fat_tree_node file_node;
     fat_file file,parent;
 u32 num_cluster;
+    errno = 0;
 
     vol = get_fat_volume();
     file_node = fat_tree_node_search(vol->file_tree, path);
-    if (!file_node)
+    
+    if (file_node == NULL || errno != 0) {
+        errno = ENOENT;
         return -errno;
+    }
+
     file = fat_tree_get_file(file_node);
     parent = fat_tree_get_parent(file_node);
     num_cluster = fat_table_seek_cluster(file->table, file->start_cluster, file->dentry->file_size);
-
+    
 //Esto es solo para debug pero nos imprime solo esto |
 fat_table_print(vol->table,file->start_cluster,num_cluster);
 DEBUG("---------------------------\n");
