@@ -331,11 +331,9 @@ int fat_fuse_truncate(const char *path, off_t offset) {
 
 /*Delete a file*/
 static int fat_fuse_unlink(const char *path) {
-  DEBUG("Entree\n");
   fat_volume vol;
   fat_tree_node file_node;
-  fat_file file, parent;
-  u32 num_cluster;
+  fat_file file=NULL, parent=NULL;
   errno = 0;
 
   vol = get_fat_volume();
@@ -348,13 +346,6 @@ static int fat_fuse_unlink(const char *path) {
 
   file = fat_tree_get_file(file_node);
   parent = fat_tree_get_parent(file_node);
-  num_cluster = fat_table_seek_cluster(file->table, file->start_cluster,
-                                       file->dentry->file_size);
-
-  // Esto es solo para debug pero nos imprime solo esto |
-  fat_table_print(vol->table, file->start_cluster, num_cluster);
-  DEBUG("---------------------------\n");
-  fat_file_print_dentry(file->dentry);
 
   fat_file_delete_clusters(file, parent);
   fat_tree_delete(vol->file_tree, path);
