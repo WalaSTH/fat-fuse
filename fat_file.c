@@ -586,13 +586,17 @@ ssize_t fat_file_pwrite(fat_file file, const void *buf, size_t size,
     offset += bytes_written_cluster;
 
     if (bytes_remaining > 0) {
-      // cluster = fat_table_get_next_free_cluster(file->table);
+      DEBUG("Num cluster: %d",file->file.num_clusters);
+      DEBUG("SE ACABO EL CLUSTER");
+      // cluster = fat_table_get_next_free_cluster(file->table);}
       u32 new_c = fat_table_get_next_free_cluster(file->table);
       fat_table_set_next_cluster(file->table, cluster, new_c);
       fat_table_set_next_cluster(file->table, new_c, FAT_CLUSTER_END_OF_CHAIN);
+      file->file.num_clusters++;
+      DEBUG("Ahora hay: %d",file->file.num_clusters);
       cluster = fat_table_get_next_cluster(file->table, cluster);
       // cluster = new_c;  Should also work
-      DEBUG("NO SE ENCONTRO OTRO CLUSTER");
+
       if (errno != 0) {
         break;
       }

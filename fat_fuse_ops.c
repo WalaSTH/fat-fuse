@@ -242,6 +242,8 @@ static int fat_fuse_write(const char *path, const char *buf, size_t size,
     return 0; // Nothing to write
   if (offset > file->dentry->file_size)
     return -EOVERFLOW;
+  
+  fat_fuse_log_activity("write", file);
   return fat_file_pwrite(file, buf, size, offset, parent);
 }
 
